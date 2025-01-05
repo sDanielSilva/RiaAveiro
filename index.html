@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Ria Aveiro</title>
+    <link rel="icon" type="image/x-icon" href="./imagens/logo.ico">
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"
+    />
+    <link href="style.css" rel="stylesheet" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="legendContainer">
+      <div id="legend25m">
+        <h4>Legenda 25m</h4>
+        <img src="https://gis4cloud.pt/geoserver/wms?service=WMS&request=GetLegendGraphic&format=image/png&layer=grupo4_ptas2024:Aveiro" alt="Legenda da Batimetria">
+      </div>
+      <div id="legend2m">
+        <h4>Legenda 2m</h4>
+        <img src="https://gis4cloud.pt/geoserver/wms?service=WMS&request=GetLegendGraphic&layer=grupo4_ptas2024:AveiroBatimetriaFinal&format=image/png" alt="Legenda da Batimetria">
+      </div>
+    </div>
+    <div id="sidebar" class="sidebar">
+      <div class="sidebar-toggle" onclick="toggleSidebar()">
+        <span class="arrow-icon">&raquo;</span>
+      </div>
+      <div class="sidebar-content">
+        <div class="tabs">
+          <div class="tab active" data-tab="routing-options" style="background-image: url('https://cdn-icons-png.flaticon.com/128/2923/2923404.png');" title="Opções de Routing"></div>
+          <div class="tab" data-tab="weather-settings" style="background-image: url('https://cdn-icons-png.flaticon.com/128/3314/3314019.png');" title="Metereologia"></div>
+          <div class="tab" data-tab="visual-settings" style="background-image: url('https://icons.iconarchive.com/icons/icons8/android/512/Maps-Map-Editing-icon.png');" title="Definições do Mapa"></div>
+        </div>
+
+        <div id="routing-options" class="tab-content active">
+          <fieldset class="select-fieldset">
+            <label>Veiculo: </label>
+            <div class="veiculos" id="vehicleOptions">
+              <div class="option" data-value="driving-traffic" onclick="selectOption(this, 'routingProfile', 'driving-traffic')">
+                <img src="./imagens/carro.png" alt="Carro"/>
+              </div>
+              <div class="option" data-value="walking" onclick="selectOption(this, 'routingProfile', 'walking')">
+                <img src="./imagens/walking.png" alt="Pe"/>
+              </div>
+              <div class="option" data-value="cycling" onclick="selectOption(this, 'routingProfile', 'cycling')">
+                <img src="./imagens/bicicleta.png" alt="Bicicleta"/>
+              </div>
+              <input type="hidden" id="routingProfile" value="walking">
+            </div>
+          </fieldset>
+
+          <fieldset class="select-fieldset">
+            <label>Tipo de métrica:</label>
+            <div class="metrica" id="metricOptions">
+              <div class="option" data-value="minutes" onclick="selectMetric('minutes')">
+                <label>Minutos
+                  <i class="fa fa-hourglass-half" style="font-size: 20px;"></i>
+                </label>
+              </div>
+              <div class="option" data-value="meters" onclick="selectMetric('meters')">
+                <label>Metros
+                  <i class="fas fa-ruler-vertical" style="font-size: 20px;transform: rotate(-45deg);margin-left: 5px;"></i>
+                </label>
+              </div>
+            </div>   
+          </fieldset>
+
+          <fieldset class="select-fieldset">
+            <label>Quantidade:</label>
+            <div class="slidecontainer" id="sliderContainer">
+              <input type="range" min="1" max="6" value="1" class="slider" id="myRange">
+              <p><span id="demo"></span></p>
+            </div>
+          </fieldset>
+          
+          <br />
+          <fieldset class="select-fieldset">
+            <fieldset class="select-fieldset">
+              <button id="addPointA">Adicionar ponto A
+                <i class="fa fa-map-marker" style="font-size: 20px;color:red"></i>
+              </button>
+              <input type="text" id="addressInputA" style="width: 100%; margin-top: 5px;" placeholder="Digite a localização do ponto A" />
+            </fieldset>
+
+            <fieldset class="select-fieldset">
+              <button id="addPointB">Adicionar ponto B
+                <i class="fa fa-map-marker" style="font-size: 20px;color:blue"></i>
+              </button>
+              <input type="text" id="addressInputB" style="width: 100%; margin-top: 5px;" placeholder="Digite a localização do ponto B" />
+            </fieldset>
+
+            <fieldset class="select-fieldset">
+              <button id="addPointIntermedio" style="display: none;">Adicionar ponto intermédio
+                <i class="fa fa-map-marker" style="font-size: 20px;color:yellow"></i>
+              </button>
+              <input type="text" id="addressInputIntermedio" style="width: 100%; margin-top: 5px; display: none;" placeholder="Digite a localização do ponto intermédio" />
+            </fieldset>
+
+            <fieldset class="select-fieldset">
+              <label id="selectedCategoryLabel" for="selectedCategory" style="display: none;">Selecione a categoria de pontos de interesse:</label>
+              <select id="selectedCategory" style="display: none;">
+                <option value="">Categorias:</option>
+                <option value="point_alojamento_local">Alojamento Local</option>
+                <option value="aluguer_bicicletas">Aluguer de Bicicletas</option>
+                <option value="aluguer_carros">Aluguer de Carros</option>
+                <option value="arte_xavega">Arte Xávega</option>
+                <option value="aves">Observação de Aves</option>
+                <option value="bancos">Bancos</option>
+                <option value="bombas_gasolina">Bombas de Gasolina</option>
+                <option value="estacao">Estação</option>
+                <option value="farmacias">Farmácias</option>
+                <option value="hospitais">Hospitais</option>
+                <option value="kitesurf">Kitesurf</option>
+                <option value="local_ferry">Ferry Local</option>
+                <option value="point_marinas_docas">Marinas e Docas</option>
+                <option value="multibanco">Multibanco</option>
+                <option value="natacao_pontoprofessora">Natação</option>
+                <option value="point_nucleos_pesca">Núcleos de Pesca</option>
+                <option value="ondas">Ondas</option>
+                <option value="paragensautocarro">Paragens de Autocarro</option>
+                <option value="percurso_azul">Percurso Azul</option>
+                <option value="percurso_dourado">Percurso Dourado</option>
+                <option value="percurso_natureza">Percurso Natureza</option>
+                <option value="percurso_verde">Percurso Verde</option>
+                <option value="point_porto">Porto</option>
+                <option value="point_praias">Praias</option>
+                <option value="restaurantes">Restaurantes</option>
+                <option value="point_surf">Surf</option>
+                <option value="terminal_ferry">Terminal de Ferry</option>
+                <option value="salinas">Salinas</option>
+                <option value="voleipraia">Vólei de Praia</option>
+              </select>
+            </fieldset>
+
+            <button id="calculateRouteButton">Calcular
+              <i class="fa fa-location-arrow" style="font-size: 20px;"></i>
+            </button>
+            <div class="overlay">
+              <button id="replay" style="display: none;">Repetir animação
+                <i class="fa fa-refresh" style="font-size: 20px;"></i>
+              </button>
+            </div>
+          </fieldset>
+
+          <br />
+          <button type="button" class="btn btn-warning" onclick="limparTudo()">
+            Limpar
+            <i class="fa fa-trash" style="font-size: 20px;"></i>
+          </button>
+        </div>
+        
+        <div id="weather-settings" class="tab-content">
+          <fieldset>
+            <button id="addWeatherPoint">Adicionar ponto meteorológico
+              <i class="fa fa-map-marker" style="font-size: 20px;color:purple"></i>
+            </button>
+            <input type="text" id="addressInputWeather" style="width: 100%; margin-top: 5px;" placeholder="Digite a localização do ponto meteorológico" />
+          </fieldset>
+        </div>
+
+        <div id="visual-settings" class="tab-content">
+          <fieldset class="select-fieldset">
+            <label>Selecionar período do dia</label>
+            <div class="periods" id="periodOptions">
+              <div class="option" data-value="dawn" onclick="selectPeriod('dawn')">
+                <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g>
+                    <circle class="circulo" cx="19" cy="19" r="18.5" fill="white"></circle>
+                    <path d="M29.9414 29.9673L7.44141 29.9673" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M24.717 29.9669C24.717 26.8095 22.1574 24.25 19.0001 24.25C15.8427 24.25 13.2832 26.8095 13.2832 29.9669" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M18.998 17.9084V20.3202" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M18.998 12.7725L18.998 6.53246" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M22.1094 8.33984L19.0723 5.95312" stroke="#4264FB" stroke-width="2" stroke-linecap="round"></path>
+                    <path d="M15.8867 8.33984L18.9238 5.95312" stroke="#4264FB" stroke-width="2" stroke-linecap="round"></path>
+                    <path d="M10.4746 21.4402L12.1786 23.1458" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M27.5245 21.4402L25.8184 23.1458" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="option" data-value="day" onclick="selectPeriod('day')">
+                <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g>
+                    <circle class="circulo" cx="19" cy="19.0002" r="18.5" fill="white"></circle>
+                    <path d="M19 24.5467C22.0635 24.5467 24.5469 22.0632 24.5469 18.9998C24.5469 15.9363 22.0635 13.4529 19 13.4529C15.9366 13.4529 13.4531 15.9363 13.4531 18.9998C13.4531 22.0632 15.9366 24.5467 19 24.5467Z" stroke="#4264FB"
+                    stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M19 7.30005V9.6401" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M10.7285 10.7268L12.3819 12.3817" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M7.30078 18.9998H9.64083" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M10.7285 27.2725L12.3834 25.6182" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M19 30.6999V28.3589" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M27.2726 27.2725L25.6172 25.6182" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M30.6994 19.0002H28.3594" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M27.2726 10.7268L25.6172 12.3817" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="option selected" data-value="dusk" onclick="selectPeriod('dusk')">
+                <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g>
+                    <circle class="circulo" cx="19" cy="19" r="18.5" fill="white"></circle>
+                    <path d="M24.4979 28.9589C24.4979 25.923 22.0368 23.4619 19.0009 23.4619C15.965 23.4619 13.5039 25.923 13.5039 28.9589" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M19 17.3643V19.6833" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M10.8008 20.7603L12.4393 22.4003" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M30.25 28.9592L7.75 28.9592" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M27.1991 20.7603L25.5586 22.4003" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M18.998 5.90894L18.998 12.1489" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M15.8887 10.3416L18.9258 12.7283" stroke="#4264FB" stroke-width="2" stroke-linecap="round"></path>
+                    <path d="M22.1113 10.3416L19.0742 12.7283" stroke="#4264FB" stroke-width="2" stroke-linecap="round"></path>
+                  </g>
+                </svg>
+              </div>
+              <div class="option" data-value="night" onclick="selectPeriod('night')">
+                <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g>
+                    <circle class="circulo" cx="19" cy="19" r="18.5" fill="white"></circle>
+                    <path d="M18.53 27.9489C14.9462 28.7919 11.3593 27.5714 9.01172 25.0631C10.617 25.5423 12.3651 25.6235 14.1138 25.2139C19.4467 23.9597 22.7537 18.6189 21.4996 13.2864C21.0884 11.5378 20.2364 10.01 19.0919 8.78589C22.3837 9.77013 25.0744 12.4361 25.9173 16.0214C27.1705 21.3549 23.864 26.6947 18.53 27.9489Z" stroke="#4264FB" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </fieldset>
+        
+          <fieldset>
+            <label for="selectAll">Mostrar informações do mapa</label>
+            <input
+                     type="checkbox"
+                     id="selectAll"
+                     checked=""
+                     onclick="toggleCheckboxes(this)"
+                   />
+          </fieldset>
+          <br>
+          <fieldset>
+            <label for="heatmap">Mostrar mapa de densidade</label>
+            <input
+                     type="checkbox"
+                     id="heatmap"
+                     onclick="toggleCheckboxes(this)"
+                   />
+          </fieldset>
+        </div>
+      </div>
+    </div>
+
+    <div class="popupLayers" id="popupLayers">
+      Selecionar layers
+    </div>
+    
+    <div class="popupOpcoesMapa" id="popupOpcoesMapa">
+      Opções do Mapa
+    </div>
+
+    <div id="sidebarLayers" class="sidebarLayers">
+      <div class="sidebarLayers-content">
+        <div id="sidebarLayers-toggle" class="sidebarLayers-toggle" onclick="toggleSidebarLayers()"><span class="arrow-icon">&laquo;</span></div>
+          <div id="Alojamento-e-Transporte" class="layer-class">
+            <a class="class-title" onclick="toggleArrow(this)">Alojamento e Transporte <span class="fa fa-arrow-down"></span></a>
+            <div class="layers"></div>
+          </div>
+          <br>
+          <div id="Pontos-de-Interesse" class="layer-class">
+            <a class="class-title" onclick="toggleArrow(this)">Pontos de Interesse <span class="fa fa-arrow-down"></span></a>
+            <div class="layers"></div>
+          </div>
+          <br>
+          <div id="Serviços" class="layer-class">
+            <a class="class-title" onclick="toggleArrow(this)">Serviços <span class="fa fa-arrow-down"></span></a>
+            <div class="layers"></div>
+          </div>
+          <br>
+          <div id="Atividades" class="layer-class">
+            <a class="class-title" onclick="toggleArrow(this)">Atividades <span class="fa fa-arrow-down"></span></a>
+            <div class="layers"></div>
+          </div>
+          <br>
+          <div id="Batimetrias" class="layer-class">
+            <a class="class-title" onclick="toggleArrow(this)">Batimetrias <span class="fa fa-arrow-down"></span></a>
+            <div class="layers"></div>
+          </div>
+          <br>
+          <div id="PercursosNauticos" class="layer-class">
+            <a class="class-title" onclick="toggleArrow(this)">Percursos Náuticos <span class="fa fa-arrow-down"></span></a>
+            <div class="layers"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalEstacaoBarra" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+      <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+        <span id="closeModal" style="color: #fefefe; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModal()">×</span>
+        <div class="custom-tab">
+          <button class="custom-tablinks" onclick="openWidget(event, 'windfinder')">Meteorologia</button>
+          <button class="custom-tablinks" onclick="openWidget(event, 'windy')">Diversos</button>
+        </div>
+        <div id="windfinder" class="custom-tabcontent">
+          <h2 style="text-align: center;">Informações da Estação</h2>
+          <div id="windfinder-widget"></div>
+        </div>
+        <div id="windy" class="custom-tabcontent" style="display: none;">
+          <h2 style="text-align: center;">Informações da Estação</h2>
+          <div id="windy-widget" style="display: flex; justify-content: center;"></div>
+        </div>
+      </div>
+    </div>
+
+
+  <div id="modalEstacaoFuradouro" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+    <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+      <span id="closeModalFuradouro" style="color: #aaa; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModalFuradouro()">&times;</span>
+      <h2 style="text-align: center;">Live cam Praia do Furadouro</h2>
+      <video id="video6" controls width="100%" height="100%"></video>
+      <div>
+        <br>
+        <h3 class="liveCamsInfo__title">Informações Úteis</h3>
+        <br>
+        <ul class="liveCamsInfo__left-list flex-container">
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/nadadorSalvador.svg" alt="Nadador salvador icon">
+              <p>Nadador salvador</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/qualidadeAgua.svg" alt="Qualidade da água icon">
+              <p>Qualidade da água</p>
+              <label>Excelente</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/bandeiraAzul.svg" alt="Bandeira Azul icon">
+              <p>Bandeira Azul</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/acesso.svg" alt="Tipo de acesso icon">
+              <p>Tipo de acesso</p>
+              <label>Fácil</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/mobilidade.svg" alt="Acesso mobilidade icon">
+              <p>Acesso mobilidade</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/parque.svg" alt="Parque icon">
+              <p>Parque</p>
+              <label>Gratuito</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/restauranteBar.svg" alt="Restaurante bar icon">
+              <p>Restaurante bar</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/aluguerToldos.svg" alt="Aluguer de toldos icon">
+              <p>Aluguer de toldos</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/primeirosSocorros.svg" alt="Primeiros socorros icon">
+              <p>Primeiros socorros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/chuveiros.svg" alt="Chuveiros icon">
+              <p>Chuveiros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/WC.svg" alt="WC icon">
+              <p>WC</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/actividades.svg" alt="Actividades icon">
+              <p>Actividades</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/surf_Bodyboard.svg" alt="Surf / Bodyboard icon">
+              <p>Surf / Bodyboard</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/kite_WindSurf.svg" alt="Kite / Wind Surf icon">
+              <p>Kite / Wind Surf</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem"rue">
+              <img src="./imagens/utilities/mergulho.svg" alt="Mergulho icon">
+              <p>Mergulho</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem">
+              <img src="./imagens/utilities/escoladeSurf.svg" alt="Escola de Surf icon">
+              <p>Escola de Surf</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem"rue">
+              <img src="./imagens/utilities/naturalismo.svg" alt="Naturalismo  tolerado icon">
+              <p>Naturalismo  tolerado</p>
+              <label>Não</label>
+          </li>
+                  </ul>  
+      </div>
+    </div>
+  </div>
+
+   <div id="modalEstacaoTorreira" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+    <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+      <span id="closeModalTorreira" style="color: #aaa; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModalTorreira()">&times;</span>
+      <h2 style="text-align: center;">Live cam Praia da Torreira</h2>
+      <video id="video4" controls width="100%" height="100%"></video>
+      <div>
+        <br>
+        <h3 class="liveCamsInfo__title">Informações Úteis</h3>
+        <br>
+        <ul class="liveCamsInfo__left-list" style="max-height: 800px;">
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/nadadorSalvador.svg" alt="Nadador salvador icon">
+              <p>Nadador salvador</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/qualidadeAgua.svg" alt="Qualidade da água icon">
+              <p>Qualidade da água</p>
+              <label>Excelente</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/bandeiraAzul.svg" alt="Bandeira Azul icon">
+              <p>Bandeira Azul</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/acesso.svg" alt="Tipo de acesso icon">
+              <p>Tipo de acesso</p>
+              <label>Fácil</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/mobilidade.svg" alt="Acesso mobilidade icon">
+              <p>Acesso mobilidade</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/parque.svg" alt="Parque icon">
+              <p>Parque</p>
+              <label>Gratuito</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/restauranteBar.svg" alt="Restaurante bar icon">
+              <p>Restaurante bar</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/aluguerToldos.svg" alt="Aluguer de toldos icon">
+              <p>Aluguer de toldos</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/primeirosSocorros.svg" alt="Primeiros socorros icon">
+              <p>Primeiros socorros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/chuveiros.svg" alt="Chuveiros icon">
+              <p>Chuveiros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/WC.svg" alt="WC icon">
+              <p>WC</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/actividades.svg" alt="Actividades icon">
+              <p>Actividades</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/surf_Bodyboard.svg" alt="Surf / Bodyboard icon">
+              <p>Surf / Bodyboard</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/kite_WindSurf.svg" alt="Kite / Wind Surf icon">
+              <p>Kite / Wind Surf</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/mergulho.svg" alt="Mergulho icon">
+              <p>Mergulho</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/escoladeSurf.svg" alt="Escola de Surf icon">
+              <p>Escola de Surf</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/naturalismo.svg" alt="Naturalismo  tolerado icon">
+              <p>Naturalismo  tolerado</p>
+              <label>Não</label>
+          </li>
+                  </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalEstacaoPraiaBarra" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+    <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+      <span id="closeModalBarra" style="color: #aaa; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModalBarra()">&times;</span>
+      <h2 style="text-align: center;">Live cam Praia da Barra</h2>
+      <video id="video3" controls width="100%" height="100%"></video>
+      <div>
+        <br>
+        <h3 class="liveCamsInfo__title">Informações Úteis</h3>
+        <br>
+        <ul class="liveCamsInfo__left-list">
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/nadadorSalvador.svg" alt="Nadador salvador icon">
+              <p>Nadador salvador</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/qualidadeAgua.svg" alt="Qualidade da água icon">
+              <p>Qualidade da água</p>
+              <label>Excelente</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/acesso.svg" alt="Tipo de acesso icon">
+              <p>Tipo de acesso</p>
+              <label>Fácil</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/mobilidade.svg" alt="Acesso mobilidade icon">
+              <p>Acesso mobilidade</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/parque.svg" alt="Parque icon">
+              <p>Parque</p>
+              <label>Gratuito</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/restauranteBar.svg" alt="Restaurante bar icon">
+              <p>Restaurante bar</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/aluguerToldos.svg" alt="Aluguer de toldos icon">
+              <p>Aluguer de toldos</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/primeirosSocorros.svg" alt="Primeiros socorros icon">
+              <p>Primeiros socorros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/chuveiros.svg" alt="Chuveiros icon">
+              <p>Chuveiros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/WC.svg" alt="WC icon">
+              <p>WC</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/actividades.svg" alt="Actividades icon">
+              <p>Actividades</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/surf_Bodyboard.svg" alt="Surf / Bodyboard icon">
+              <p>Surf / Bodyboard</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/kite_WindSurf.svg" alt="Kite / Wind Surf icon">
+              <p>Kite / Wind Surf</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/mergulho.svg" alt="Mergulho icon">
+              <p>Mergulho</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/escoladeSurf.svg" alt="Escola de Surf icon">
+              <p>Escola de Surf</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/naturalismo.svg" alt="Naturalismo  tolerado icon">
+              <p>Naturalismo  tolerado</p>
+              <label>Não</label>
+          </li>
+                  </ul> 
+      </div>
+    </div>
+  </div>
+
+  <div id="modalEstacaoCostaNova" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+    <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+      <span id="closeModalCostaNova" style="color: #aaa; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModalCostaNova()">&times;</span>
+      <h2 style="text-align: center;">Live cam Praia da Costa Nova</h2>
+      <video id="video2" controls width="100%" height="100%"></video>
+      <div>
+        <br>
+        <h3 class="liveCamsInfo__title">Informações Úteis</h3>
+        <br>
+        <ul class="liveCamsInfo__left-list" style="max-height: 800px;">
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/nadadorSalvador.svg" alt="Nadador salvador icon">
+              <p>Nadador salvador</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/qualidadeAgua.svg" alt="Qualidade da água icon">
+              <p>Qualidade da água</p>
+              <label>Excelente</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/bandeiraAzul.svg" alt="Bandeira Azul icon">
+              <p>Bandeira Azul</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/acesso.svg" alt="Tipo de acesso icon">
+              <p>Tipo de acesso</p>
+              <label>Fácil</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/mobilidade.svg" alt="Acesso mobilidade icon">
+              <p>Acesso mobilidade</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/parque.svg" alt="Parque icon">
+              <p>Parque</p>
+              <label>Gratuito</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/restauranteBar.svg" alt="Restaurante bar icon">
+              <p>Restaurante bar</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/aluguerToldos.svg" alt="Aluguer de toldos icon">
+              <p>Aluguer de toldos</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/primeirosSocorros.svg" alt="Primeiros socorros icon">
+              <p>Primeiros socorros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/chuveiros.svg" alt="Chuveiros icon">
+              <p>Chuveiros</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/WC.svg" alt="WC icon">
+              <p>WC</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/actividades.svg" alt="Actividades icon">
+              <p>Actividades</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/surf_Bodyboard.svg" alt="Surf / Bodyboard icon">
+              <p>Surf / Bodyboard</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/kite_WindSurf.svg" alt="Kite / Wind Surf icon">
+              <p>Kite / Wind Surf</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/mergulho.svg" alt="Mergulho icon">
+              <p>Mergulho</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/escoladeSurf.svg" alt="Escola de Surf icon">
+              <p>Escola de Surf</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/naturalismo.svg" alt="Naturalismo  tolerado icon">
+              <p>Naturalismo  tolerado</p>
+              <label>Não</label>
+          </li>
+                  </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalEstacaoVagueira" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+    <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+      <span id="closeModalVagueira" style="color: #aaa; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModalVagueria()">&times;</span>
+      <h2 style="text-align: center;">Live cam Praia da Vagueira</h2>
+      <video id="video5" controls width="100%" height="100%"></video>
+      <div>
+        <br>
+        <h3 class="liveCamsInfo__title">Informações Úteis</h3>
+        <br>
+        <ul class="liveCamsInfo__left-list" style="max-height: 800px;">
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/nadadorSalvador.svg" alt="Nadador salvador icon">
+              <p>Nadador salvador</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/qualidadeAgua.svg" alt="Qualidade da água icon">
+              <p>Qualidade da água</p>
+              <label>Excelente</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/bandeiraAzul.svg" alt="Bandeira Azul icon">
+              <p>Bandeira Azul</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/acesso.svg" alt="Tipo de acesso icon">
+              <p>Tipo de acesso</p>
+              <label>Fácil</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/mobilidade.svg" alt="Acesso mobilidade icon">
+              <p>Acesso mobilidade</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/parque.svg" alt="Parque icon">
+              <p>Parque</p>
+              <label>Gratuito</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/restauranteBar.svg" alt="Restaurante bar icon">
+              <p>Restaurante bar</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/aluguerToldos.svg" alt="Aluguer de toldos icon">
+              <p>Aluguer de toldos</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/primeirosSocorros.svg" alt="Primeiros socorros icon">
+              <p>Primeiros socorros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/chuveiros.svg" alt="Chuveiros icon">
+              <p>Chuveiros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/WC.svg" alt="WC icon">
+              <p>WC</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/actividades.svg" alt="Actividades icon">
+              <p>Actividades</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/surf_Bodyboard.svg" alt="Surf / Bodyboard icon">
+              <p>Surf / Bodyboard</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/kite_WindSurf.svg" alt="Kite / Wind Surf icon">
+              <p>Kite / Wind Surf</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/mergulho.svg" alt="Mergulho icon">
+              <p>Mergulho</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/escoladeSurf.svg" alt="Escola de Surf icon">
+              <p>Escola de Surf</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/naturalismo.svg" alt="Naturalismo  tolerado icon">
+              <p>Naturalismo  tolerado</p>
+              <label>Não</label>
+          </li>
+                  </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalEstacaoMira" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center;">
+    <div style="background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; max-height: 90%; overflow-y: auto; border-radius: 15px;">
+      <span id="closeModalMira" style="color: #aaa; position: absolute; top: 10px; right: 10px; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeModalMira()">&times;</span>
+      <h2 style="text-align: center;">Live cam Praia de Mira</h2>
+      <video id="video7" controls width="100%" height="100%"></video>
+      <div>
+        <br>
+        <h3 class="liveCamsInfo__title">Informações Úteis</h3>
+        <br>
+        <ul class="liveCamsInfo__left-list" style="max-height: 753px;">
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/nadadorSalvador.svg" alt="Nadador salvador icon">
+              <p>Nadador salvador</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/qualidadeAgua.svg" alt="Qualidade da água icon">
+              <p>Qualidade da água</p>
+              <label>Excelente</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/acesso.svg" alt="Tipo de acesso icon">
+              <p>Tipo de acesso</p>
+              <label>Fácil</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/mobilidade.svg" alt="Acesso mobilidade icon">
+              <p>Acesso mobilidade</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/parque.svg" alt="Parque icon">
+              <p>Parque</p>
+              <label>Gratuito</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/restauranteBar.svg" alt="Restaurante bar icon">
+              <p>Restaurante bar</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/aluguerToldos.svg" alt="Aluguer de toldos icon">
+              <p>Aluguer de toldos</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/primeirosSocorros.svg" alt="Primeiros socorros icon">
+              <p>Primeiros socorros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/chuveiros.svg" alt="Chuveiros icon">
+              <p>Chuveiros</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/WC.svg" alt="WC icon">
+              <p>WC</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/actividades.svg" alt="Actividades icon">
+              <p>Actividades</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="">
+              <img src="./imagens/utilities/surf_Bodyboard.svg" alt="Surf / Bodyboard icon">
+              <p>Surf / Bodyboard</p>
+              <label>Sim</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/kite_WindSurf.svg" alt="Kite / Wind Surf icon">
+              <p>Kite / Wind Surf</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/mergulho.svg" alt="Mergulho icon">
+              <p>Mergulho</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/escoladeSurf.svg" alt="Escola de Surf icon">
+              <p>Escola de Surf</p>
+              <label>Não</label>
+          </li>
+          <li class="liveCamsInfo__left-listItem" data-off="true">
+              <img src="./imagens/utilities/naturalismo.svg" alt="Naturalismo  tolerado icon">
+              <p>Naturalismo  tolerado</p>
+              <label>Não</label>
+          </li>
+                  </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="infoModal" class="modal">
+    <div class="modal-content2">
+      <div id="modalContent">
+      </div>
+      <canvas id="mareGraph" width="700" height="300"></canvas>
+    </div>
+  </div>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', (event) => {
+
+  document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'praia-furadouro') {
+    var modal = document.getElementById('modalEstacaoFuradouro');
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+  }
+});
+
+  document.getElementById('closeModalFuradouro').onclick = function() {
+    document.getElementById('modalEstacaoFuradouro').style.display = 'none';
+  }
+
+
+  document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'praia-torreira') {
+    var modal = document.getElementById('modalEstacaoTorreira');
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+  }
+});
+
+  document.getElementById('closeModalTorreira').onclick = function() {
+    document.getElementById('modalEstacaoTorreira').style.display = 'none';
+  }
+
+  document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'praia-barra') {
+    var modal = document.getElementById('modalEstacaoPraiaBarra');
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+  }
+});
+
+  document.getElementById('closeModalBarra').onclick = function() {
+    document.getElementById('modalEstacaoPraiaBarra').style.display = 'none';
+  }
+
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'praia-costa-nova') {
+    var modal = document.getElementById('modalEstacaoCostaNova');
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+  }
+});
+
+  document.getElementById('closeModalCostaNova').onclick = function() {
+    document.getElementById('modalEstacaoCostaNova').style.display = 'none';
+  }
+
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'praia-vagueira') {
+    var modal = document.getElementById('modalEstacaoVagueira');
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+  }
+});
+
+  document.getElementById('closeModalVagueira').onclick = function() {
+    document.getElementById('modalEstacaoVagueira').style.display = 'none';
+  }
+
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'praia-mira') {
+    var modal = document.getElementById('modalEstacaoMira');
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+  }
+});
+
+  document.getElementById('closeModalMira').onclick = function() {
+    document.getElementById('modalEstacaoMira').style.display = 'none';
+  }
+
+  document.addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'estacao-barra') {
+      var modal = document.getElementById('modalEstacaoBarra');
+      modal.style.display = 'flex';
+      modal.style.justifyContent = 'center';
+      modal.style.alignItems = 'center';
+    }
+  });
+
+  document.getElementById('closeModal').onclick = function() {
+    document.getElementById('modalEstacaoBarra').style.display = 'none';
+  }
+
+  window.onclick = function(event) {
+    var modal = document.getElementById('modalEstacaoBarra');
+    if (event.target === modal) {
+      modal.style.display = 'none';
+    }else if(event.target === document.getElementById('modalEstacaoTorreira')){
+      document.getElementById('modalEstacaoTorreira').style.display = 'none';
+    }else if(event.target === document.getElementById('modalEstacaoFuradouro')){
+      document.getElementById('modalEstacaoFuradouro').style.display = 'none';
+    }else if(event.target === document.getElementById('modalEstacaoPraiaBarra')){
+      document.getElementById('modalEstacaoPraiaBarra').style.display = 'none';
+    }else if(event.target === document.getElementById('modalEstacaoCostaNova')){
+      document.getElementById('modalEstacaoCostaNova').style.display = 'none';
+    }else if(event.target === document.getElementById('modalEstacaoVagueira')){
+      document.getElementById('modalEstacaoVagueira').style.display = 'none';
+    }else if(event.target === document.getElementById('modalEstacaoMira')){
+      document.getElementById('modalEstacaoMira').style.display = 'none';
+    } else if(event.target === document.getElementById('infoModal')){
+      document.getElementById('infoModal').style.display = 'none';
+    }
+  }
+
+  
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.css" type="text/css">
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.3.1/mapbox-gl-directions.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.js"></script>
+    <script src="script.js" async></script>
+  </body>
+</html>
